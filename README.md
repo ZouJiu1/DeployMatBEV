@@ -318,7 +318,8 @@ python3 infer_float.py --config ./config/nuscene_config.py \
 
 Output example:
 
-<img src="./infer_out/nusc_pred_1.jpg" width="100%"/>
+<img src="./infer_out/nusc_pred_10.jpg" width="100%"/>
+<img src="./infer_out/nusc_pred_16.jpg" width="100%"/>
 
 ---
 
