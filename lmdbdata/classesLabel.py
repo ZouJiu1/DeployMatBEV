@@ -1,0 +1,1 @@
+CLASSES = ['Car', 'Van', 'Truck', 'Bus', 'Pedestrian', 'Cyclist']
