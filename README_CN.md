@@ -336,6 +336,15 @@ nuScenes
 python3 export_onnx.py --config ./config/nuscene_config.py \
 --learning_point_version 10 --ckpt ./model/ckptnuscene/float-checkpoint-best.pth101010.tar
 ```
+
+---
+## PTQ QAT and deploy
+若需要部署，请遵循 horizon 部署指南。
+
+如果版本为 3、2 或 1，您可以尝试修改**view_transformerFisheye.py**中的代码：
+
+`fused = bev_img_fp * bev_depth_fp` to `fused = bev_img_fp + bev_depth_fp`
+
 ---
 
 ## 📐 参数量统计

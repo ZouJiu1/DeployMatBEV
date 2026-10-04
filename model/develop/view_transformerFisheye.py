@@ -254,6 +254,8 @@ class ViewTransformerFisheye(nn.Module):
         learning_point = True,
         learning_point_version = '3',
         hidden_matmul = 256,
+        use_bev_bias = False,
+        use_chain_relu = False,
     ):
         super(ViewTransformerFisheye, self).__init__()
         self.num_views = num_views
@@ -290,6 +292,12 @@ class ViewTransformerFisheye(nn.Module):
         self.depth_bev_quant = QuantStub()
         self.learning_point_version = learning_point_version
 
+        # ===== Q = PAH + B: output bias (bev_bias) =====
+        self.use_bev_bias = use_bev_bias
+
+        # ===== chain ReLU: real depth for v1-v3 (False = reproduce old linear chains) =====
+        self.use_chain_relu = use_chain_relu
+
         self.num_layer = 3
 
         print("learning_point: hidden_matmul: ", self.learning_point_version, hidden_matmul, self.grid_size[0])
@@ -304,9 +312,9 @@ class ViewTransformerFisheye(nn.Module):
                 data2 = torch.rand((num_views, feat_hw[1], hidden_matmul)) * 2 - 1
                 data22 = torch.rand((num_views, hidden_matmul, hidden_matmul)) * 2 - 1
                 data222 = torch.rand((num_views, hidden_matmul, self.grid_size[1])) * 2 - 1
-                data_1 = torch.rand((num_views, self.grid_size[0], self.grid_size[1])) * 2 - 1
-                data_11 = torch.rand((num_views, self.grid_size[0], self.grid_size[1])) * 2 - 1
-                data_111 = torch.rand((num_views, self.grid_size[0], self.grid_size[1])) * 2 - 1
+                data_1 = torch.rand((num_views, self.grid_size[1], self.grid_size[1])) * 2 - 1
+                data_11 = torch.rand((num_views, self.grid_size[1], self.grid_size[1])) * 2 - 1
+                data_111 = torch.rand((num_views, self.grid_size[1], self.grid_size[1])) * 2 - 1
                 data_2 = torch.rand((num_views, feat_hw[0], feat_hw[0])) * 2 - 1
                 data_22 = torch.rand((num_views, feat_hw[0], feat_hw[0])) * 2 - 1
                 data_222 = torch.rand((num_views, feat_hw[0], feat_hw[0])) * 2 - 1
@@ -322,59 +330,98 @@ class ViewTransformerFisheye(nn.Module):
                 row_sum_2 = feat_hw[0] #* self.num_views
                 row_sum_22 = feat_hw[0] #* self.num_views
                 row_sum_222 = feat_hw[0] #* self.num_views
-                self.param_point1 = nn.Parameter(data = data1 / row_sum1, requires_grad = True)
-                self.param_point11 = nn.Parameter(data = data11 / row_sum11, requires_grad = True)
-                self.param_point111 = nn.Parameter(data = data111 / row_sum111, requires_grad = True)
-                self.param_point2 = nn.Parameter(data = data2 / row_sum2, requires_grad = True)
-                self.param_point22 = nn.Parameter(data = data22 / row_sum22, requires_grad = True)
-                self.param_point222 = nn.Parameter(data = data222 / row_sum222, requires_grad = True)
-                self.param_point1_col = nn.Parameter(data = data1.clone() / row_sum1, requires_grad = True)
-                self.param_point11_col = nn.Parameter(data = data11.clone() / row_sum11, requires_grad = True)
-                self.param_point111_col = nn.Parameter(data = data111.clone() / row_sum111, requires_grad = True)
-                self.param_point2_col = nn.Parameter(data = data2.clone() / row_sum2, requires_grad = True)
-                self.param_point22_col = nn.Parameter(data = data22.clone() / row_sum22, requires_grad = True)
-                self.param_point222_col = nn.Parameter(data = data222.clone() / row_sum222, requires_grad = True)
-                self.param_point_1_col = nn.Parameter(data = data_1.clone() / row_sum_1, requires_grad = True)
-                self.param_point_11_col =nn.Parameter(data = data_11.clone() / row_sum_11, requires_grad = True)
-                self.param_point_111_col = nn.Parameter(data = data_111.clone() / row_sum_111, requires_grad = True)
-                self.param_point_2_col = nn.Parameter(data = data_2.clone() / row_sum_2, requires_grad = True)
-                self.param_point_22_col = nn.Parameter(data = data_22.clone() / row_sum_22, requires_grad = True)
-                self.param_point_222_col = nn.Parameter(data = data_222.clone() / row_sum_222, requires_grad = True)
+                if self.learning_point_version == '9':
+                    self.param_point1_col = nn.Parameter(data = data1.clone() / row_sum1, requires_grad = True)
+                    self.param_point11_col = nn.Parameter(data = data11.clone() / row_sum11, requires_grad = True)
+                    self.param_point111_col = nn.Parameter(data = data111.clone() / row_sum111, requires_grad = True)
+                    self.param_point2_col = nn.Parameter(data = data2.clone() / row_sum2, requires_grad = True)
+                    self.param_point22_col = nn.Parameter(data = data22.clone() / row_sum22, requires_grad = True)
+                    self.param_point222_col = nn.Parameter(data = data222.clone() / row_sum222, requires_grad = True)
+                    self.param_point_1_col = nn.Parameter(data = data_1.clone() / row_sum_1, requires_grad = True)
+                    self.param_point_11_col =nn.Parameter(data = data_11.clone() / row_sum_11, requires_grad = True)
+                    self.param_point_111_col = nn.Parameter(data = data_111.clone() / row_sum_111, requires_grad = True)
+                    self.param_point_2_col = nn.Parameter(data = data_2.clone() / row_sum_2, requires_grad = True)
+                    self.param_point_22_col = nn.Parameter(data = data_22.clone() / row_sum_22, requires_grad = True)
+                    self.param_point_222_col = nn.Parameter(data = data_222.clone() / row_sum_222, requires_grad = True)
 
-                self.param_point1_col1 = nn.Parameter(data = data1.clone() / row_sum1, requires_grad = True)
-                self.param_point11_col1 = nn.Parameter(data = data11.clone() / row_sum11, requires_grad = True)
-                self.param_point111_col1 = nn.Parameter(data = data111.clone() / row_sum111, requires_grad = True)
-                self.param_point2_col1 = nn.Parameter(data = data2.clone() / row_sum2, requires_grad = True)
-                self.param_point22_col1 = nn.Parameter(data = data22.clone() / row_sum22, requires_grad = True)
-                self.param_point222_col1 = nn.Parameter(data = data222.clone() / row_sum222, requires_grad = True)
-                self.param_point_1_col1 = nn.Parameter(data = data_1.clone() / row_sum_1, requires_grad = True)
-                self.param_point_11_col1 =nn.Parameter(data = data_11.clone() / row_sum_11, requires_grad = True)
-                self.param_point_111_col1 = nn.Parameter(data = data_111.clone() / row_sum_111, requires_grad = True)
-                self.param_point_2_col1 = nn.Parameter(data = data_2.clone() / row_sum_2, requires_grad = True)
-                self.param_point_22_col1 = nn.Parameter(data = data_22.clone() / row_sum_22, requires_grad = True)
-                self.param_point_222_col1 = nn.Parameter(data = data_222.clone() / row_sum_222, requires_grad = True)
+                    self.param_point1_col1 = nn.Parameter(data = data1.clone() / row_sum1, requires_grad = True)
+                    self.param_point11_col1 = nn.Parameter(data = data11.clone() / row_sum11, requires_grad = True)
+                    self.param_point111_col1 = nn.Parameter(data = data111.clone() / row_sum111, requires_grad = True)
+                    self.param_point2_col1 = nn.Parameter(data = data2.clone() / row_sum2, requires_grad = True)
+                    self.param_point22_col1 = nn.Parameter(data = data22.clone() / row_sum22, requires_grad = True)
+                    self.param_point222_col1 = nn.Parameter(data = data222.clone() / row_sum222, requires_grad = True)
+                    self.param_point_1_col1 = nn.Parameter(data = data_1.clone() / row_sum_1, requires_grad = True)
+                    self.param_point_11_col1 =nn.Parameter(data = data_11.clone() / row_sum_11, requires_grad = True)
+                    self.param_point_111_col1 = nn.Parameter(data = data_111.clone() / row_sum_111, requires_grad = True)
+                    self.param_point_2_col1 = nn.Parameter(data = data_2.clone() / row_sum_2, requires_grad = True)
+                    self.param_point_22_col1 = nn.Parameter(data = data_22.clone() / row_sum_22, requires_grad = True)
+                    self.param_point_222_col1 = nn.Parameter(data = data_222.clone() / row_sum_222, requires_grad = True)
 
-                self.param_point1_col2 = nn.Parameter(data = data1.clone() / row_sum1, requires_grad = True)
-                self.param_point11_col2 = nn.Parameter(data = data11.clone() / row_sum11, requires_grad = True)
-                self.param_point111_col2 = nn.Parameter(data = data111.clone() / row_sum111, requires_grad = True)
-                self.param_point2_col2 = nn.Parameter(data = data2.clone() / row_sum2, requires_grad = True)
-                self.param_point22_col2 = nn.Parameter(data = data22.clone() / row_sum22, requires_grad = True)
-                self.param_point222_col2 = nn.Parameter(data = data222.clone() / row_sum222, requires_grad = True)
-                self.param_point_1_col2 = nn.Parameter(data = data_1.clone() / row_sum_1, requires_grad = True)
-                self.param_point_11_col2 =nn.Parameter(data = data_11.clone() / row_sum_11, requires_grad = True)
-                self.param_point_111_col2 = nn.Parameter(data = data_111.clone() / row_sum_111, requires_grad = True)
-                self.param_point_2_col2 = nn.Parameter(data = data_2.clone() / row_sum_2, requires_grad = True)
-                self.param_point_22_col2 = nn.Parameter(data = data_22.clone() / row_sum_22, requires_grad = True)
-                self.param_point_222_col2 = nn.Parameter(data = data_222.clone() / row_sum_222, requires_grad = True)
+                    self.param_point1_col2 = nn.Parameter(data = data1.clone() / row_sum1, requires_grad = True)
+                    self.param_point11_col2 = nn.Parameter(data = data11.clone() / row_sum11, requires_grad = True)
+                    self.param_point111_col2 = nn.Parameter(data = data111.clone() / row_sum111, requires_grad = True)
+                    self.param_point2_col2 = nn.Parameter(data = data2.clone() / row_sum2, requires_grad = True)
+                    self.param_point22_col2 = nn.Parameter(data = data22.clone() / row_sum22, requires_grad = True)
+                    self.param_point222_col2 = nn.Parameter(data = data222.clone() / row_sum222, requires_grad = True)
+                    self.param_point_1_col2 = nn.Parameter(data = data_1.clone() / row_sum_1, requires_grad = True)
+                    self.param_point_11_col2 =nn.Parameter(data = data_11.clone() / row_sum_11, requires_grad = True)
+                    self.param_point_111_col2 = nn.Parameter(data = data_111.clone() / row_sum_111, requires_grad = True)
+                    self.param_point_2_col2 = nn.Parameter(data = data_2.clone() / row_sum_2, requires_grad = True)
+                    self.param_point_22_col2 = nn.Parameter(data = data_22.clone() / row_sum_22, requires_grad = True)
+                    self.param_point_222_col2 = nn.Parameter(data = data_222.clone() / row_sum_222, requires_grad = True)
+                elif self.learning_point_version == '10' or self.learning_point_version=='11':
+                    self.param_point1 = nn.Parameter(data = data1 / row_sum1, requires_grad = True)
+                    self.param_point11 = nn.Parameter(data = data11 / row_sum11, requires_grad = True)
+                    self.param_point111 = nn.Parameter(data = data111 / row_sum111, requires_grad = True)
+                    self.param_point2 = nn.Parameter(data = data2 / row_sum2, requires_grad = True)
+                    self.param_point22 = nn.Parameter(data = data22 / row_sum22, requires_grad = True)
+                    self.param_point222 = nn.Parameter(data = data222 / row_sum222, requires_grad = True)
 
-                self.param_point_1 = nn.Parameter(data = data_1 / row_sum_1, requires_grad = True)
-                self.param_point_11 = nn.Parameter(data = data_11 / row_sum_11, requires_grad = True)
-                self.param_point_111 = nn.Parameter(data = data_111 / row_sum_111, requires_grad = True)
-                
-                self.param_point_2 = nn.Parameter(data = data_2 / row_sum_2, requires_grad = True)
-                self.param_point_22 = nn.Parameter(data = data_22 / row_sum_22, requires_grad = True)
-                self.param_point_222 = nn.Parameter(data = data_222 / row_sum_222, requires_grad = True)
-                self.param_point_111_final = nn.Parameter(data = data_111_final / row_sum_111, requires_grad = True)
+                    self.param_point_1 = nn.Parameter(data = data_1 / row_sum_1, requires_grad = True)
+                    self.param_point_11 = nn.Parameter(data = data_11 / row_sum_11, requires_grad = True)
+                    self.param_point_111 = nn.Parameter(data = data_111 / row_sum_111, requires_grad = True)
+                    
+                    self.param_point_2 = nn.Parameter(data = data_2 / row_sum_2, requires_grad = True)
+                    self.param_point_22 = nn.Parameter(data = data_22 / row_sum_22, requires_grad = True)
+                    self.param_point_222 = nn.Parameter(data = data_222 / row_sum_222, requires_grad = True)
+                    self.param_point_111_final = nn.Parameter(data = data_111_final / row_sum_111, requires_grad = True)
+
+                if self.use_bev_bias:
+                    # per-view BEV spatial bias, shared across channels: num_views x 1 x H_b x W_b
+                    if self.learning_point_version == '9':
+                        self.bev_bias_param_point_2_col = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_22_col = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_222_col = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], self.grid_size[1]), requires_grad = True)
+                        self.bev_bias_param_point_1_col = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_11_col = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_111_col = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], self.grid_size[0]), requires_grad = True)
+
+                        self.bev_bias_param_point_2_col1 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_22_co1 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_222_col1 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], self.grid_size[1]), requires_grad = True)
+                        self.bev_bias_param_point_1_col1 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_11_col1 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_111_col1 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], self.grid_size[0]), requires_grad = True)
+
+                        self.bev_bias_param_point_2_col2 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_22_co2 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_222_col2 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], self.grid_size[1]), requires_grad = True)
+                        self.bev_bias_param_point_1_col2 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_11_col2 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_111_col2 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], self.grid_size[0]), requires_grad = True)
+                    elif self.learning_point_version == '10' or self.learning_point_version=='11':
+                        self.bev_bias_param_point_2 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_22 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_222 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, feat_hw[0], self.grid_size[1]), requires_grad = True)
+
+                        self.bev_bias_param_point_1 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_11 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], hidden_matmul), requires_grad = True)
+                        self.bev_bias_param_point_111 = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[1], self.grid_size[0]), requires_grad = True)
+                    # per-channel variant (closer to "any same-shape matrix", x feat_channels params):
+                    # self.bev_bias = nn.Parameter(
+                    #     data = torch.zeros(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]),
+                    #     requires_grad = True,
+                    # )
             elif self.learning_point_version == '3':
                 data1 = torch.rand((num_views, feat_hw[0], hidden_matmul)) * 2 - 1
                 data11 = torch.rand((num_views, hidden_matmul, hidden_matmul)) * 2 - 1
@@ -482,6 +529,11 @@ class ViewTransformerFisheye(nn.Module):
                 drow_sum2 = 1 #feat_hw[1] * self.num_views
                 self.dparam_point1 = nn.Parameter(data = ddata1 / drow_sum1, requires_grad = True)
                 self.dparam_point2 = nn.Parameter(data = ddata2 / drow_sum2, requires_grad = True)
+
+            if self.use_bev_bias and self.learning_point_version in ['1', '2', '3']:
+                    self.param_bev_biasMat = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]), requires_grad = True)
+                    self.param_bev_biasMatDepth = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]), requires_grad = True)
+
         # if learning_point:
         #     self.spatial_decay_scale = 2.0
         #     self.use_gaussian_init = True
@@ -544,22 +596,6 @@ class ViewTransformerFisheye(nn.Module):
         #     self.dparam_point1 = nn.Parameter(data=ddata1, requires_grad=True)
         #     self.dparam_point2 = nn.Parameter(data=ddata2, requires_grad=True)
 
-        # ===== Q = PAH + B: output bias (bev_bias) =====
-        self.use_bev_bias = True
-
-        # ===== chain ReLU: real depth for v1-v3 (False = reproduce old linear chains) =====
-        self.use_chain_relu = True
-        if self.use_bev_bias:
-            # per-view BEV spatial bias, shared across channels: num_views x 1 x H_b x W_b
-            self.bev_bias = nn.Parameter(
-                data = torch.zeros(self.num_views, 1, self.grid_size[0], self.grid_size[1]),
-                requires_grad = True,
-            )
-            # per-channel variant (closer to "any same-shape matrix", x feat_channels params):
-            # self.bev_bias = nn.Parameter(
-            #     data = torch.zeros(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]),
-            #     requires_grad = True,
-            # )
 
         self.ref_point = None
 
@@ -1674,7 +1710,8 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                     flat_bev = flat_bev.permute((0, 1, 3, 2))
                 else:
                     flat_bev = flat_bev.permute((0, 2, 1))
-                    
+                if self.use_bev_bias:
+                    flat_bev += self.param_bev_biasMat[i]
 
                 flat_depth_bev = torch.matmul( depth_feat, self.dparam_point2[i] )
                 if self.use_chain_relu:
@@ -1700,13 +1737,14 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                     flat_depth_bev = flat_depth_bev.permute((0, 1, 3, 2))
                 else:
                     flat_depth_bev = flat_depth_bev.permute((0, 2, 1))
+                if self.use_bev_bias:
+                    flat_depth_bev += self.param_bev_biasMatDepth[i]
 
                 # flat_bev_col.append(flat_bev + flat_depth_bev)
                 bev_img_fp = self.bev_quant(flat_bev)
                 bev_depth_fp = self.depth_bev_quant(flat_depth_bev)
                 fused = bev_img_fp * bev_depth_fp
-                if self.use_bev_bias:
-                    fused = fused + self.bev_bias[i]
+
                 flat_bev_col.append(fused)
         elif self.learning_point_version == '2':
             for i in range(self.num_views):
@@ -1731,7 +1769,8 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                     flat_bev = flat_bev.permute((0, 1, 3, 2))
                 else:
                     flat_bev = flat_bev.permute((0, 2, 1))
-                    
+                if self.use_bev_bias:
+                    flat_bev += self.param_bev_biasMat[i]
 
                 flat_depth_bev = torch.matmul( depth_feat, self.dparam_point2[i] )
                 if self.use_chain_relu:
@@ -1751,13 +1790,14 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                     flat_depth_bev = flat_depth_bev.permute((0, 1, 3, 2))
                 else:
                     flat_depth_bev = flat_depth_bev.permute((0, 2, 1))
+                if self.use_bev_bias:
+                    flat_depth_bev += self.param_bev_biasMatDepth[i]
 
                 # flat_bev_col.append(flat_bev + flat_depth_bev)
                 bev_img_fp = self.bev_quant(flat_bev)
                 bev_depth_fp = self.depth_bev_quant(flat_depth_bev)
                 fused = bev_img_fp * bev_depth_fp
-                if self.use_bev_bias:
-                    fused = fused + self.bev_bias[i]
+
                 flat_bev_col.append(fused)
         elif self.learning_point_version == '1':
             for i in range(self.num_views):
@@ -1776,7 +1816,8 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                     flat_bev = flat_bev.permute((0, 1, 3, 2))
                 else:
                     flat_bev = flat_bev.permute((0, 2, 1))
-                    
+                if self.use_bev_bias:
+                    flat_bev += self.param_bev_biasMat[i]
 
                 flat_depth_bev = torch.matmul( depth_feat, self.dparam_point2[i] )
                 if self.use_chain_relu:
@@ -1790,14 +1831,15 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                     flat_depth_bev = flat_depth_bev.permute((0, 1, 3, 2))
                 else:
                     flat_depth_bev = flat_depth_bev.permute((0, 2, 1))
+                if self.use_bev_bias:
+                    flat_bev += self.param_bev_biasMatDepth[i]
 
                 # flat_bev_col.append(flat_bev + flat_depth_bev)
                 bev_img_fp = self.bev_quant(flat_bev)
                 bev_depth_fp = self.depth_bev_quant(flat_depth_bev)
                 fused = bev_img_fp * bev_depth_fp
-                if self.use_bev_bias:
-                    fused = fused + self.bev_bias[i]
                 flat_bev_col.append(fused)
+                
         elif self.learning_point_version == '9':                # 333SplitMatrix_SameWeight
             for i in range(self.num_views):
                 img_feat = feat[i]
@@ -1811,32 +1853,44 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                 # flat_bev00 = torch.matmul(self.param_point2_m[i], flat_bev00)
                 flat_bev = self.fbn0_col1[i](flat_bev00)
                 flat_bev = torch.matmul(self.param_point_2_col[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_2_col[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point22_col[i] )
                 # flat_bev = torch.matmul(self.param_point22_m[i], flat_bev)
                 flat_bev = self.fbn00_col1[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_22_col[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_22_col[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point222_col[i] )
                 # flat_bev = torch.matmul( self.param_point222_m[i], flat_bev)
                 flat_bev = self.fbn000_col1[i](flat_bev) + flat_bev00
                 flat_bev = torch.matmul(self.param_point_222_col[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_222_col[i]
                 flat_bev = flat_bev.permute((0, 1, 3, 2))
 
                 flat_bev11 = torch.matmul( flat_bev, self.param_point1_col[i] )
                 # flat_bev11 = torch.matmul( self.param_point1_m[i], flat_bev11)
                 flat_bev = self.fbn1_col1[i](flat_bev11)
                 flat_bev = torch.matmul(self.param_point_1_col[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_1_col[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point11_col[i] )
                 # flat_bev = torch.matmul( self.param_point11_m[i], flat_bev)
                 flat_bev = self.fbn11_col1[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_11_col[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_11_col[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point111_col[i] )
                 # flat_bev = torch.matmul( self.param_point111_m[i], flat_bev)
                 flat_bev = self.fbn111_col1[i](flat_bev) + flat_bev11
                 flat_bev = torch.matmul(self.param_point_111_col[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_111_col[i]
                 flat_bev_ret0 = flat_bev.permute((0, 1, 3, 2))
 
 
@@ -1845,32 +1899,44 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                 # flat_bev00 = torch.matmul(self.param_point2_m[i], flat_bev00)
                 flat_bev = self.fbn0_col[i](flat_bev00)
                 flat_bev = torch.matmul(self.param_point_2_col1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_2_col1[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point22_col1[i] )
                 # flat_bev = torch.matmul(self.param_point22_m[i], flat_bev)
                 flat_bev = self.fbn00_col[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_22_col1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_22_col1[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point222_col1[i] )
                 # flat_bev = torch.matmul( self.param_point222_m[i], flat_bev)
                 flat_bev = self.fbn000_col[i](flat_bev) + flat_bev00
                 flat_bev = torch.matmul(self.param_point_222_col1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_222_col1[i]
                 flat_bev = flat_bev.permute((0, 1, 3, 2))
 
                 flat_bev11 = torch.matmul( flat_bev, self.param_point1_col1[i] )
                 # flat_bev11 = torch.matmul( self.param_point1_m[i], flat_bev11)
                 flat_bev = self.fbn1_col[i](flat_bev11)
                 flat_bev = torch.matmul(self.param_point_1_col1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_1_col1[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point11_col1[i] )
                 # flat_bev = torch.matmul( self.param_point11_m[i], flat_bev)
                 flat_bev = self.fbn11_col[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_11_col1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_11_col1[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point111_col1[i] )
                 # flat_bev = torch.matmul( self.param_point111_m[i], flat_bev)
                 flat_bev = self.fbn111_col[i](flat_bev) + flat_bev11
                 flat_bev = torch.matmul(self.param_point_111_col1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_111_col1[i]
                 flat_bev_ret1 = flat_bev.permute((0, 1, 3, 2))
 
 
@@ -1879,37 +1945,47 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                 # flat_bev00 = torch.matmul(self.param_point2_m[i], flat_bev00)
                 flat_bev = self.fbn0_col2[i](flat_bev00)
                 flat_bev = torch.matmul(self.param_point_2_col2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_2_col2[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point22_col2[i] )
                 # flat_bev = torch.matmul(self.param_point22_m[i], flat_bev)
                 flat_bev = self.fbn00_col2[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_22_col2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_22_col2[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point222_col2[i] )
                 # flat_bev = torch.matmul( self.param_point222_m[i], flat_bev)
                 flat_bev = self.fbn000_col2[i](flat_bev) + flat_bev00
                 flat_bev = torch.matmul(self.param_point_222_col2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_222_col2[i]
                 flat_bev = flat_bev.permute((0, 1, 3, 2))
 
                 flat_bev11 = torch.matmul( flat_bev, self.param_point1_col2[i] )
                 # flat_bev11 = torch.matmul( self.param_point1_m[i], flat_bev11)
                 flat_bev = self.fbn1_col2[i](flat_bev11)
                 flat_bev = torch.matmul(self.param_point_1_col2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_1_col2[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point11_col2[i] )
                 # flat_bev = torch.matmul( self.param_point11_m[i], flat_bev)
                 flat_bev = self.fbn11_col2[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_11_col2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_11_col2[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point111_col2[i] )
                 # flat_bev = torch.matmul( self.param_point111_m[i], flat_bev)
                 flat_bev = self.fbn111_col2[i](flat_bev) + flat_bev11
                 flat_bev = torch.matmul(self.param_point_111_col2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_111_col2[i]
                 flat_bev_ret2 = flat_bev.permute((0, 1, 3, 2))
 
                 collect__ = self.bnMergeFD_col[i](torch.concat([flat_bev_ret0, flat_bev_ret1, flat_bev_ret2], dim = 1))
-                if self.use_bev_bias:
-                    collect__ = collect__ + self.bev_bias[i]
                 flat_bev_col.append(collect__)
             return self.bnMergeALL(torch.concat(flat_bev_col, dim = 1))
         elif self.learning_point_version == '10':                # 333SplitMatrix_SameWeight 3muchmuchbetter
@@ -1924,32 +2000,44 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                 # flat_bev00 = torch.matmul(self.param_point2_m[i], flat_bev00)
                 flat_bev = self.fbn0[i](flat_bev00)
                 flat_bev = torch.matmul(self.param_point_2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_2[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point22[i] )
                 # flat_bev = torch.matmul(self.param_point22_m[i], flat_bev)
                 flat_bev = self.fbn00[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_22[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_22[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point222[i] )
                 # flat_bev = torch.matmul( self.param_point222_m[i], flat_bev)
                 flat_bev = self.fbn000[i](flat_bev) + flat_bev00
                 flat_bev = torch.matmul(self.param_point_222[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_222[i]
                 flat_bev = flat_bev.permute((0, 1, 3, 2))
 
                 flat_bev11 = torch.matmul( flat_bev, self.param_point1[i] )
                 # flat_bev11 = torch.matmul( self.param_point1_m[i], flat_bev11)
                 flat_bev = self.fbn1[i](flat_bev11)
                 flat_bev = torch.matmul(self.param_point_1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_1[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point11[i] )
                 # flat_bev = torch.matmul( self.param_point11_m[i], flat_bev)
                 flat_bev = self.fbn11[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_11[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_11[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point111[i] )
                 # flat_bev = torch.matmul( self.param_point111_m[i], flat_bev)
                 flat_bev = self.fbn111[i](flat_bev) + flat_bev11
                 flat_bev = torch.matmul(self.param_point_111[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_111[i]
                 flat_bev = flat_bev.permute((0, 1, 3, 2))
                 # flat_bev = torch.matmul(flat_bev, self.param_point_111_final[i])
 
@@ -1990,8 +2078,6 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                 # if len(fused.shape)==3:
                 #     fused = fused.unsqueeze(0)
                 fused = bev_img_fp #self.bnMergeFD[i](torch.concat([bev_img_fp, bev_depth_fp], dim = 1))
-                if self.use_bev_bias:
-                    fused = fused + self.bev_bias[i]
                 flat_bev_col.append(fused)# / (self.num_views))
             trans_feat = self.bnMergeALL(torch.concat(flat_bev_col, dim = 1))
             return trans_feat
@@ -2006,29 +2092,41 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                 flat_bev00 = torch.matmul( img_feat, self.param_point2[i] )
                 flat_bev = self.fbn0[i](flat_bev00)
                 flat_bev = torch.matmul(self.param_point_2[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_2[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point22[i] )
                 flat_bev = self.fbn00[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_22[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_22[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point222[i] )
                 flat_bev = self.fbn000[i](flat_bev) + flat_bev00
                 flat_bev = torch.matmul(self.param_point_222[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_222[i]
                 flat_bev = flat_bev.permute((0, 1, 3, 2))
 
                 flat_bev11 = torch.matmul( flat_bev, self.param_point1[i] )
                 flat_bev = self.fbn1[i](flat_bev11)
                 flat_bev = torch.matmul(self.param_point_1[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_1[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point11[i] )
                 flat_bev = self.fbn11[i](flat_bev)
                 flat_bev = torch.matmul(self.param_point_11[i], flat_bev)
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_11[i]
 
                 flat_bev = torch.matmul( flat_bev, self.param_point111[i] )
                 flat_bev = self.fbn111[i](flat_bev) + flat_bev11
                 flat_bev = flat_bev.permute((0, 1, 3, 2))
                 flat_bev = torch.matmul(self.param_point_111[i], flat_bev)
                 flat_bev = torch.matmul(flat_bev, self.param_point_111_final[i])
+                if self.use_bev_bias:
+                    flat_bev += self.bev_bias_param_point_111[i]
 
                 # flat_depth_bev00 = torch.matmul( depth_feat, self.param_point2[i] )
                 # flat_depth_bev = self.dbn0[i](flat_depth_bev00)
@@ -2067,8 +2165,6 @@ class LSSTransformerFisheye(ViewTransformerFisheye):
                 # if len(fused.shape)==3:
                 #     fused = fused.unsqueeze(0)
                 fused = bev_img_fp #self.bnMergeFD[i](torch.concat([bev_img_fp, bev_depth_fp], dim = 1))
-                if self.use_bev_bias:
-                    fused = fused + self.bev_bias[i]
                 flat_bev_col.append(fused)# / (self.num_views))
             trans_feat = self.bnMergeALL(torch.concat(flat_bev_col, dim = 1))
             return trans_feat
@@ -2513,4 +2609,3 @@ class GKTTransformerFisheye(ViewTransformerFisheye):
 
     def fuse_model(self) -> None:
         pass
-#（注：内容由AI生成）
