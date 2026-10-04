@@ -366,6 +366,7 @@ python3 model/statistic.py
 
 ## Reference
 
+- [https://github.com/ZouJiu1/bevPool](https://github.com/ZouJiu1/bevPool)
 - [Fisheye3DOD](https://github.com/weiyangdaren/Fisheye3DOD)
 - [horizon PTQ/QAT deployment guide](https://doc.oe.horizon.auto/3.8.1/guide/model_compile.html)
 - [horizon developer portal](https://developer.horizon.auto/)
@@ -431,6 +432,14 @@ $$\mathrm{rank}(PAH) \le \min(\mathrm{rank}\,P, \mathrm{rank}\,A, \mathrm{rank}\
 ### 落到本项目
 
 代码中 `matmul(img_feat, param)`（右乘，作用在宽度轴 $W$，列变换）与 permute 后的 `matmul`（等价左乘，作用在高度轴 $H$，行变换）合起来正是 $Q = PAH$。以 v2 为例：宽度链 $H = H_1H_2 \in \mathbb{R}^{50 \times 128}$，高度链 $P = P_2^{\top}P_1^{\top} \in \mathbb{R}^{128 \times 50}$。
+
+**笔者的几何解释（逐元素看"特征移动与累加"）**：
+
+- 右乘 $H$：$(AH)_{ij} = \sum_k A_{ik}H_{kj}$，对 $A$ 的**每一行**（同一高度上沿宽度排列的特征），$H$ 把第 $k$ 个宽度位置的特征以权重 $H_{kj}$ 移动并累加到新的第 $j$ 个位置；每行独立处理，行与行之间不混合；
+- 左乘 $P$：$(PA)_{ij} = \sum_k P_{ik}A_{kj}$，对 $A$ 的**每一列**（同一宽度上沿高度排列的特征），$P$ 把第 $k$ 个高度位置的特征移动并累加到新的第 $i$ 个位置；每列独立处理，列与列之间不混合；
+- 合起来：$Q_{ij} = \sum_{k,l} P_{ik}A_{kl}H_{lj}$——每个输入像素 $(k,l)$ 以可分离权重 $P_{ik}H_{lj}$ 贡献到每个输出像素 $(i,j)$，二维搬运被分解为"先沿宽度、再沿高度"两次一维搬运。
+
+**通道共享**：投影矩阵形状为 `[num_views, ...]`，只按视角区分、不含通道维；`matmul` 对批次维 $B$ 与通道维 $C$ 广播，**同一图片的所有特征通道共用同一套 $P$、$H$**。空间搬运是通道无关的，通道混合由投影前的 1×1 卷积（`feat_net`/`depth_net`）负责——1×1 卷积只混通道、不移动空间位置；投影矩阵只移动空间位置、不混通道，两者互补。
 
 秩分析：$A \in \mathbb{R}^{50 \times 50}$，故单通道 $\mathrm{rank}(Q) \le 50$（$Q$ 是 $128 \times 128$）——这是纯矩阵形式的固有天花板。缓解因素：
 

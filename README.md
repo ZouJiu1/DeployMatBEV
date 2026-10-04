@@ -368,6 +368,7 @@ python3 model/statistic.py
 
 ## Reference
 
+- [https://github.com/ZouJiu1/bevPool](https://github.com/ZouJiu1/bevPool)
 - [Fisheye3DOD](https://github.com/weiyangdaren/Fisheye3DOD)
 - [horizon PTQ/QAT deployment guide](https://doc.oe.horizon.auto/3.8.1/guide/model_compile.html)
 - [horizon developer portal](https://developer.horizon.auto/)
@@ -433,6 +434,14 @@ $$\mathrm{rank}(PAH) \le \min(\mathrm{rank}\,P, \mathrm{rank}\,A, \mathrm{rank}\
 ### Implications for this project
 
 In code, `matmul(img_feat, param)` (right-multiplication, acting on width $W$, column transform) followed by the post-permute `matmul` (equivalent left-multiplication, acting on height $H$, row transform) together implement $Q = PAH$. For v2: the width chain $H = H_1H_2 \in \mathbb{R}^{50 \times 128}$, the height chain $P = P_2^{\top}P_1^{\top} \in \mathbb{R}^{128 \times 50}$.
+
+**My geometric interpretation (feature displacement and accumulation, element-wise)**:
+
+- Right multiplication by $H$: $(AH)_{ij} = \sum_k A_{ik}H_{kj}$. For **each row** of $A$ (features laid out along the width axis at one height), $H$ displaces the feature at width position $k$ with weight $H_{kj}$ and accumulates it into the new position $j$; every row is processed independently by the same $H$, with no cross-row mixing;
+- Left multiplication by $P$: $(PA)_{ij} = \sum_k P_{ik}A_{kj}$. For **each column** of $A$ (features laid out along the height axis at one width), $P$ displaces and accumulates features along the height axis; every column is processed independently, with no cross-column mixing;
+- Jointly: $Q_{ij} = \sum_{k,l} P_{ik}A_{kl}H_{lj}$—every input location $(k,l)$ contributes to every output location $(i,j)$ with the separable weight $P_{ik}H_{lj}$; the 2D transport factorizes into a width pass followed by a height pass.
+
+**Channel sharing**: the projection matrices have shape `[num_views, ...]`—they differ only per view and carry no channel dimension; `matmul` broadcasts over both batch $B$ and channel $C$, so **all feature channels of one image share the same $P$ and $H$**. Spatial displacement is channel-agnostic, while channel mixing is delegated to the $1\times1$ convolutions (`feat_net`/`depth_net`) before projection—the $1\times1$ convolutions mix channels without moving spatial positions, and the projection matrices move spatial positions without mixing channels; the two are complementary.
 
 Rank analysis: $A \in \mathbb{R}^{50 \times 50}$, so per-channel $\mathrm{rank}(Q) \le 50$ (while $Q$ is $128 \times 128$)—an inherent ceiling of the pure matrix form. Mitigating factors:
 
