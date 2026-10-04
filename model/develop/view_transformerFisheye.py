@@ -531,8 +531,8 @@ class ViewTransformerFisheye(nn.Module):
                 self.dparam_point2 = nn.Parameter(data = ddata2 / drow_sum2, requires_grad = True)
 
             if self.use_bev_bias and self.learning_point_version in ['1', '2', '3']:
-                    self.param_bev_biasMat = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]), requires_grad = True)
-                    self.param_bev_biasMatDepth = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]), requires_grad = True)
+                self.param_bev_biasMat = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]), requires_grad = True)
+                self.param_bev_biasMatDepth = nn.Parameter(data = torch.randn(self.num_views, self.feat_channels, self.grid_size[0], self.grid_size[1]), requires_grad = True)
 
         # if learning_point:
         #     self.spatial_decay_scale = 2.0
