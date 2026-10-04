@@ -2,9 +2,11 @@
 
 >本文撰写的部分内容来自人工智能大模型Kimi-K3
 
+[https://github.com/ZouJiu1/DeployMatBEV](https://github.com/ZouJiu1/DeployMatBEV/tree/master)
+
 > 适合读者：**零基础也能读**。无论你是刚接触自动驾驶感知的新手工程师，还是只想了解"汽车是怎么看清周围世界"的普通读者，本文都会从"相机怎么成像"讲起，一步步推到论文的核心创新。
 >
-> 论文：《DeployBEV: A Self-Learned Matrix View Transformer for NPU-Deployable Multi-Fisheye BEV 3D Object Detection》
+> 论文：[《DeployBEV: A Self-Learned Matrix View Transformer for NPU-Deployable Multi-Fisheye BEV 3D Object Detection》](https://github.com/ZouJiu1/DeployMatBEV/blob/master/paper_outputs/paper_main.pdf)
 >
 > 本文覆盖：坐标系与坐标变换、相机标定、数据采集与数据标注、鸟瞰图感知、Lift-Splat-Shoot 原理、NPU 硬件架构、四类"坏"算子剖析、核心方法推导、源码逐行导读、实验复现、局限分析。
 
@@ -947,6 +949,7 @@ DeployMatBEV 给所有做车载感知的工程师上了一课：
 
 ## 附录二 参考资料
 
+- [https://github.com/ZouJiu1/DeployMatBEV](https://github.com/ZouJiu1/DeployMatBEV/tree/master)
 - 论文 PDF：本仓库 `paper_outputs/paper_main.pdf`
 - 核心源码：本仓库 `model/view_transformerFisheye.py`（`ViewTransformerFisheye._spatial_transfom_learn`）
 - Fisheye3DOD 数据集与基线：https://github.com/weiyangdaren/Fisheye3DOD
