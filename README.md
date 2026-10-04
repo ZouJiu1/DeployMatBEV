@@ -407,70 +407,70 @@ Goyu Meta Technology Co., Ltd.
 
 ---
 
-## 📐 Appendix: Mathematical Foundation — Matrix Equivalence Transform $PAH$ (The Original Inspiration, from myself)
+## 📐 Appendix: Mathematical Foundation — Matrix Equivalence Transform $`PAH`$ (The Original Inspiration, from myself)
 
-The entire project originated from my own initial insight: **each channel of the image feature map is a matrix $A \in \mathbb{R}^{50 \times 50}$, and each channel of the target BEV feature map is also a matrix $Q \in \mathbb{R}^{128 \times 128}$. The most direct linear algebra tool for "matrix-to-matrix" transformation is simultaneous left and right multiplication: $Q = PAH$**. Left-multiplication by $P$ corresponds to row transformations (acting on the height axis), and right-multiplication by $H$ corresponds to column transformations (acting on the width axis). Therefore, image-to-BEV in the view transformer only needs matrices, not LSS.
+The entire project originated from my own initial insight: **each channel of the image feature map is a matrix $`A \in \mathbb{R}^{50 \times 50}`$, and each channel of the target BEV feature map is also a matrix $`Q \in \mathbb{R}^{128 \times 128}`$. The most direct linear algebra tool for "matrix-to-matrix" transformation is simultaneous left and right multiplication: $`Q = PAH`$**. Left-multiplication by $`P`$ corresponds to row transformations (acting on the height axis), and right-multiplication by $`H`$ corresponds to column transformations (acting on the width axis). Therefore, image-to-BEV in the view transformer only needs matrices, not LSS.
 
-### Can $PAH$ turn $A$ into an "arbitrary" matrix? Strict conclusions for both cases
+### Can $`PAH`$ turn $`A`$ into an "arbitrary" matrix? Strict conclusions for both cases
 
-**Case 1: $P$, $H$ invertible (elementary row/column operations / equivalence transformation)**
+**Case 1: $`P`$, $`H`$ invertible (elementary row/column operations / equivalence transformation)**
 
-- **Equivalence canonical form theorem**: For an $m \times n$ matrix $A$ with $\mathrm{rank}(A) = r$, there exist invertible $P$, $H$ such that $`PAH = E_r = \begin{pmatrix} I_r & O \\ O & O \end{pmatrix}`$.
-- **Proof sketch (Gaussian elimination in matrix language)**: the three types of elementary row/column operations each correspond to an invertible elementary matrix ($E(i,j)$ row swap, $E(i(c))$ scaling, $E(i,j(k))$ row addition); one row operation ⟺ left-multiplying an elementary matrix, one column operation ⟺ right-multiplying. Step 1: row operations reduce to echelon form $`P_s\cdots P_1 A = \begin{pmatrix} U_r \\ O \end{pmatrix}`$. Step 2: column operations use pivots to clear entries on the right, giving $\mathrm{diag}(D_r, O)$. Step 3: left-multiply by $\mathrm{diag}(d_1^{-1},\dots,d_r^{-1},1,\dots,1)$ to scale pivots to 1. Accumulating all left multiplications into $P$ and right ones into $H$—products of elementary matrices remain invertible. $\blacksquare$
-- **Equivalence necessary and sufficient condition**: there exist invertible $P$, $H$ with $B = PAH$ ⟺ $\mathrm{rank}(A) = \mathrm{rank}(B)$.
-  - ($\Rightarrow$) Invertible transformations are linear isomorphisms and preserve rank: $\mathrm{rank}(B) = \mathrm{rank}(PAH) = \mathrm{rank}(A)$;
-  - ($\Leftarrow$) If both ranks equal $r$, then $A = P_A^{-1}E_rH_A^{-1}$ and $B = P_B^{-1}E_rH_B^{-1}$; eliminating $E_r$ gives $B = (P_B^{-1}P_A)\,A\,(H_AH_B^{-1})$. $\blacksquare$
-- **Reachable set: $\{Q : \mathrm{rank}(Q) = \mathrm{rank}(A)\}$, all same-shaped matrices of the same rank—not all matrices.** Invariant: rank.
+- **Equivalence canonical form theorem**: For an $`m \times n`$ matrix $`A`$ with $`\mathrm{rank}(A) = r`$, there exist invertible $`P`$, $`H`$ such that $`PAH = E_r = \begin{pmatrix} I_r & O \\ O & O \end{pmatrix}`$.
+- **Proof sketch (Gaussian elimination in matrix language)**: the three types of elementary row/column operations each correspond to an invertible elementary matrix ($`E(i,j)`$ row swap, $`E(i(c))`$ scaling, $`E(i,j(k))`$ row addition); one row operation ⟺ left-multiplying an elementary matrix, one column operation ⟺ right-multiplying. Step 1: row operations reduce to echelon form $`P_s\cdots P_1 A = \begin{pmatrix} U_r \\ O \end{pmatrix}`$. Step 2: column operations use pivots to clear entries on the right, giving $`\mathrm{diag}(D_r, O)`$. Step 3: left-multiply by $`\mathrm{diag}(d_1^{-1},\dots,d_r^{-1},1,\dots,1)`$ to scale pivots to 1. Accumulating all left multiplications into $`P`$ and right ones into $`H`$—products of elementary matrices remain invertible. $`\blacksquare`$
+- **Equivalence necessary and sufficient condition**: there exist invertible $`P`$, $`H`$ with $`B = PAH`$ ⟺ $`\mathrm{rank}(A) = \mathrm{rank}(B)`$.
+  - ($`\Rightarrow`$) Invertible transformations are linear isomorphisms and preserve rank: $`\mathrm{rank}(B) = \mathrm{rank}(PAH) = \mathrm{rank}(A)`$;
+  - ($`\Leftarrow`$) If both ranks equal $`r`$, then $`A = P_A^{-1}E_rH_A^{-1}`$ and $`B = P_B^{-1}E_rH_B^{-1}`$; eliminating $`E_r`$ gives $`B = (P_B^{-1}P_A)\,A\,(H_AH_B^{-1})`$. $`\blacksquare`$
+- **Reachable set: $`\{Q : \mathrm{rank}(Q) = \mathrm{rank}(A)\}`$, all same-shaped matrices of the same rank—not all matrices.** Invariant: rank.
 
-**Case 2: $P$, $H$ arbitrary (not necessarily invertible)**
+**Case 2: $`P`$, $`H`$ arbitrary (not necessarily invertible)**
 
-- **Lemma**: $\mathrm{rank}(XY) \le \min(\mathrm{rank}\,X, \mathrm{rank}\,Y)$ (since column space $\mathrm{Col}(XY) \subseteq \mathrm{Col}(X)$ and row space $\mathrm{Row}(XY) \subseteq \mathrm{Row}(Y)$). Applying twice:
-$$\mathrm{rank}(PAH) \le \min(\mathrm{rank}\,P, \mathrm{rank}\,A, \mathrm{rank}\,H) \le \mathrm{rank}(A)$$
-- **Converse reachability**: any same-shaped $Q$ with $\mathrm{rank}(Q) = s \le r$ can be reached. Construction: $Q = P_QE_sH_Q$; take the diagonal projection $D_s = \mathrm{diag}(1,\dots,1,0,\dots,0)$ (first $s$ entries are 1); from $E_s = D_sE_rD_s'$ and $E_r = P_AAH_A$ we get $Q = (P_QD_sP_A)\,A\,(H_AD_s'H_Q)$. $\blacksquare$
-- **Reachable set: $\{Q : \mathrm{rank}(Q) \le \mathrm{rank}(A)\}$.** Upper bound: result rank does not exceed $\mathrm{rank}(A)$.
+- **Lemma**: $`\mathrm{rank}(XY) \le \min(\mathrm{rank}\,X, \mathrm{rank}\,Y)`$ (since column space $`\mathrm{Col}(XY) \subseteq \mathrm{Col}(X)`$ and row space $`\mathrm{Row}(XY) \subseteq \mathrm{Row}(Y)`$). Applying twice:
+$`\mathrm{rank}(PAH) \le \min(\mathrm{rank}\,P, \mathrm{rank}\,A, \mathrm{rank}\,H) \le \mathrm{rank}(A)`$
+- **Converse reachability**: any same-shaped $`Q`$ with $`\mathrm{rank}(Q) = s \le r`$ can be reached. Construction: $`Q = P_QE_sH_Q`$; take the diagonal projection $`D_s = \mathrm{diag}(1,\dots,1,0,\dots,0)`$ (first $`s`$ entries are 1); from $`E_s = D_sE_rD_s'`$ and $`E_r = P_AAH_A`$ we get $`Q = (P_QD_sP_A)\,A\,(H_AD_s'H_Q)`$. $`\blacksquare`$
+- **Reachable set: $`\{Q : \mathrm{rank}(Q) \le \mathrm{rank}(A)\}`$.** Upper bound: result rank does not exceed $`\mathrm{rank}(A)`$.
 
-**Geometric interpretation**: matrix $A$ represents a linear map $T: V \to W$. Right-multiplying by invertible $H$ ⟺ changing the basis of the domain $V$ ($x = Hx'$); left-multiplying by invertible $P$ ⟺ changing the basis of the codomain $W$ ($y' = Py$). Basis changes never alter the map's rank—$\mathrm{rank}(A) = \dim\mathrm{Im}(T)$ is intrinsic to the map (the image dimension is fixed), independent of coordinate choices. Hence after changing bases the "effective dimension" of the map is unchanged, and no higher-rank map can be obtained.
+**Geometric interpretation**: matrix $`A`$ represents a linear map $`T: V \to W`$. Right-multiplying by invertible $`H`$ ⟺ changing the basis of the domain $`V`$ ($`x = Hx'`$); left-multiplying by invertible $`P`$ ⟺ changing the basis of the codomain $`W`$ ($`y' = Py`$). Basis changes never alter the map's rank—$`\mathrm{rank}(A) = \dim\mathrm{Im}(T)`$ is intrinsic to the map (the image dimension is fixed), independent of coordinate choices. Hence after changing bases the "effective dimension" of the map is unchanged, and no higher-rank map can be obtained.
 
 ### Implications for this project
 
-In code, `matmul(img_feat, param)` (right-multiplication, acting on width $W$, column transform) followed by the post-permute `matmul` (equivalent left-multiplication, acting on height $H$, row transform) together implement $Q = PAH$. For v2: the width chain $H = H_1H_2 \in \mathbb{R}^{50 \times 128}$, the height chain $P = P_2^{\top}P_1^{\top} \in \mathbb{R}^{128 \times 50}$.
+In code, `matmul(img_feat, param)` (right-multiplication, acting on width $`W`$, column transform) followed by the post-permute `matmul` (equivalent left-multiplication, acting on height $`H`$, row transform) together implement $`Q = PAH`$. For v2: the width chain $`H = H_1H_2 \in \mathbb{R}^{50 \times 128}`$, the height chain $`P = P_2^{\top}P_1^{\top} \in \mathbb{R}^{128 \times 50}`$.
 
 **My geometric interpretation (feature displacement and accumulation, element-wise)**:
 
-- Right multiplication by $H$: $(AH)_{ij} = \sum_k A_{ik}H_{kj}$. For **each row** of $A$ (features laid out along the width axis at one height), $H$ displaces the feature at width position $k$ with weight $H_{kj}$ and accumulates it into the new position $j$; every row is processed independently by the same $H$, with no cross-row mixing;
-- Left multiplication by $P$: $(PA)_{ij} = \sum_k P_{ik}A_{kj}$. For **each column** of $A$ (features laid out along the height axis at one width), $P$ displaces and accumulates features along the height axis; every column is processed independently, with no cross-column mixing;
-- Jointly: $Q_{ij} = \sum_{k,l} P_{ik}A_{kl}H_{lj}$—every input location $(k,l)$ contributes to every output location $(i,j)$ with the separable weight $P_{ik}H_{lj}$; the 2D transport factorizes into a width pass followed by a height pass.
+- Right multiplication by $`H`$: $`(AH)_{ij} = \sum_k A_{ik}H_{kj}`$. For **each row** of $`A`$ (features laid out along the width axis at one height), $`H`$ displaces the feature at width position $`k`$ with weight $`H_{kj}`$ and accumulates it into the new position $`j`$; every row is processed independently by the same $`H`$, with no cross-row mixing;
+- Left multiplication by $`P`$: $`(PA)_{ij} = \sum_k P_{ik}A_{kj}`$. For **each column** of $`A`$ (features laid out along the height axis at one width), $`P`$ displaces and accumulates features along the height axis; every column is processed independently, with no cross-column mixing;
+- Jointly: $`Q_{ij} = \sum_{k,l} P_{ik}A_{kl}H_{lj}`$—every input location $`(k,l)`$ contributes to every output location $`(i,j)`$ with the separable weight $`P_{ik}H_{lj}`$; the 2D transport factorizes into a width pass followed by a height pass.
 
-**Channel sharing**: the projection matrices have shape `[num_views, ...]`—they differ only per view and carry no channel dimension; `matmul` broadcasts over both batch $B$ and channel $C$, so **all feature channels of one image share the same $P$ and $H$**. Spatial displacement is channel-agnostic, while channel mixing is delegated to the $1\times1$ convolutions (`feat_net`/`depth_net`) before projection—the $1\times1$ convolutions mix channels without moving spatial positions, and the projection matrices move spatial positions without mixing channels; the two are complementary.
+**Channel sharing**: the projection matrices have shape `[num_views, ...]`—they differ only per view and carry no channel dimension; `matmul` broadcasts over both batch $`B`$ and channel $`C`$, so **all feature channels of one image share the same $`P`$ and $`H`$**. Spatial displacement is channel-agnostic, while channel mixing is delegated to the $`1\times1`$ convolutions (`feat_net`/`depth_net`) before projection—the $`1\times1`$ convolutions mix channels without moving spatial positions, and the projection matrices move spatial positions without mixing channels; the two are complementary.
 
-Rank analysis: $A \in \mathbb{R}^{50 \times 50}$, so per-channel $\mathrm{rank}(Q) \le 50$ (while $Q$ is $128 \times 128$)—an inherent ceiling of the pure matrix form. Mitigating factors:
+Rank analysis: $`A \in \mathbb{R}^{50 \times 50}`$, so per-channel $`\mathrm{rank}(Q) \le 50`$ (while $`Q`$ is $`128 \times 128`$)—an inherent ceiling of the pure matrix form. Mitigating factors:
 
 1. **64 channels**: the rank constraint is per-channel; 64 channels carry complementary low-rank structures;
-2. **4-view summation**: $\mathrm{rank}(B_1+B_2) \le \mathrm{rank}(B_1)+\mathrm{rank}(B_2)$, so four rank-$\le 50$ matrices can jointly span the full 128 dimensions;
+2. **4-view summation**: $`\mathrm{rank}(B_1+B_2) \le \mathrm{rank}(B_1)+\mathrm{rank}(B_2)`$, so four rank-$`\le 50`$ matrices can jointly span the full 128 dimensions;
 3. **BEV encoder non-linearities**: break the linear-form rank constraint.
 
-Likewise, the pure matmul chains of v2/v3 without intermediate non-linearities collapse into a single matrix ($P_2^{\top}P_1^{\top}$ is still $128 \times 50$), so their rank ceiling is identical to v1; the gains come from optimization dynamics, not an enlarged reachable set.
+Likewise, the pure matmul chains of v2/v3 without intermediate non-linearities collapse into a single matrix ($`P_2^{\top}P_1^{\top}`$ is still $`128 \times 50`$), so their rank ceiling is identical to v1; the gains come from optimization dynamics, not an enlarged reachable set.
 
-### Next Steps (TODO): Two schemes to break the $\mathrm{rank}(A)$ ceiling
+### Next Steps (TODO): Two schemes to break the $`\mathrm{rank}(A)`$ ceiling
 
-**Scheme 1: Affine transform $Q = PAH + B$**
+**Scheme 1: Affine transform $`Q = PAH + B`$**
 
-- **What**: abandon the pure multiplicative form; add a learnable offset matrix $B \in \mathbb{R}^{128 \times 128}$, upgrading the linear map to an affine one (isomorphic to $y = Wx \to y = Wx + b$).
-- **Why it works**: $B$ can be full-rank 128, so $\mathrm{rank}(PAH + B)$ is no longer bounded by $\mathrm{rank}(A)$ (extreme case: $P = H = O$, $B = I_{128}$ gives full-rank $Q$); geometrically it adds "translation freedom"—the feature-space origin becomes movable.
-- **Cost**: $+16384$ parameters per view per branch, $\approx 0.13$M for 4 views × 2 branches; addition is a regular-memory-access operator, so deployment friendliness is unchanged.
+- **What**: abandon the pure multiplicative form; add a learnable offset matrix $`B \in \mathbb{R}^{128 \times 128}`$, upgrading the linear map to an affine one (isomorphic to $`y = Wx \to y = Wx + b`$).
+- **Why it works**: $`B`$ can be full-rank 128, so $`\mathrm{rank}(PAH + B)`$ is no longer bounded by $`\mathrm{rank}(A)`$ (extreme case: $`P = H = O`$, $`B = I_{128}`$ gives full-rank $`Q`$); geometrically it adds "translation freedom"—the feature-space origin becomes movable.
+- **Cost**: $`+16384`$ parameters per view per branch, $`\approx 0.13`$M for 4 views × 2 branches; addition is a regular-memory-access operator, so deployment friendliness is unchanged.
 - **Code change**: in `__init__` add `self.bias_bev = nn.Parameter(torch.zeros(num_views, 1, grid_size[0], grid_size[1]))`; in the forward pass, `flat_bev = flat_bev + self.bias_bev[i]`.
-- **Validation experiments**: add the bias to v1/v2/v3 separately, compare NDS/mAP; visualize whether $B$ learns a "prior occupancy map" structure.
+- **Validation experiments**: add the bias to v1/v2/v3 separately, compare NDS/mAP; visualize whether $`B`$ learns a "prior occupancy map" structure.
 
-**Scheme 2: Vector-space view — linear combinations $Q = \sum_{k=1}^{K} P_k A H_k$**
+**Scheme 2: Vector-space view — linear combinations $`Q = \sum_{k=1}^{K} P_k A H_k`$**
 
-- **What**: treat matrix $A$ as a vector in matrix space; replace single left/right multiplication with a $K$-term mixed projection.
-- **Mathematical basis (Kronecker product)**: $\mathrm{vec}(AXB) = (B^{\top} \otimes A)\,\mathrm{vec}(X)$, hence $\mathrm{vec}(PAH) = (H^{\top} \otimes P)\,\mathrm{vec}(A)$—$PAH$ is only a "Kronecker-structured" linear map, using 12,800 parameters to represent a map $\mathbb{R}^{2500} \to \mathbb{R}^{16384}$ (a general linear map would need ~41M parameters); the $K$-term sum $\mathrm{vec}(Q) = \sum_k (H_k^{\top} \otimes P_k)\,\mathrm{vec}(A)$ corresponds to maps of Kronecker rank $\le K$, which densely approximate arbitrary linear maps as $K$ grows.
-- **Why it works (rank view)**: $\mathrm{rank}(Q) \le \sum_k \mathrm{rank}(P_kAH_k) \le K \cdot \mathrm{rank}(A) = 50K$; at $K = 3$ the ceiling reaches $150 \ge 128$, allowing full rank.
-- **Connection to the current design**: the 4-view summation is a cross-view prototype with $K = 4$; the dual branch is $K = 2$; this scheme refines the idea to within a single view, learning $K$ matrix pairs $(P_k, H_k)$ per view.
-- **Cost**: parameters and FLOPs grow linearly with $K$; implement $K$ as an extra batch dimension via `bmm`/`einsum`, still purely regular operators.
-- **Validation experiments**: ablate $K = 1, 2, 3, 4$ to find the NDS/mAP saturation point; combine with Scheme 1 as $Q = \sum_k P_kAH_k + B$.
+- **What**: treat matrix $`A`$ as a vector in matrix space; replace single left/right multiplication with a $`K`$-term mixed projection.
+- **Mathematical basis (Kronecker product)**: $`\mathrm{vec}(AXB) = (B^{\top} \otimes A)\,\mathrm{vec}(X)`$, hence $`\mathrm{vec}(PAH) = (H^{\top} \otimes P)\,\mathrm{vec}(A)`$—$`PAH`$ is only a "Kronecker-structured" linear map, using 12,800 parameters to represent a map $`\mathbb{R}^{2500} \to \mathbb{R}^{16384}`$ (a general linear map would need ~41M parameters); the $`K`$-term sum $`\mathrm{vec}(Q) = \sum_k (H_k^{\top} \otimes P_k)\,\mathrm{vec}(A)`$ corresponds to maps of Kronecker rank $`\le K`$, which densely approximate arbitrary linear maps as $`K`$ grows.
+- **Why it works (rank view)**: $`\mathrm{rank}(Q) \le \sum_k \mathrm{rank}(P_kAH_k) \le K \cdot \mathrm{rank}(A) = 50K`$; at $`K = 3`$ the ceiling reaches $`150 \ge 128`$, allowing full rank.
+- **Connection to the current design**: the 4-view summation is a cross-view prototype with $`K = 4`$; the dual branch is $`K = 2`$; this scheme refines the idea to within a single view, learning $`K`$ matrix pairs $`(P_k, H_k)`$ per view.
+- **Cost**: parameters and FLOPs grow linearly with $`K`$; implement $`K`$ as an extra batch dimension via `bmm`/`einsum`, still purely regular operators.
+- **Validation experiments**: ablate $`K = 1, 2, 3, 4`$ to find the NDS/mAP saturation point; combine with Scheme 1 as $`Q = \sum_k P_kAH_k + B`$.
 
-**Unified geometric understanding**: basis changes in the pure $PAH$ form can never yield a higher-rank map; Scheme 1's $+B$ adds translation freedom (linear → affine), and Scheme 2's summation adds superposition freedom over multiple maps—two orthogonal directions for breaking the rank constraint.
+**Unified geometric understanding**: basis changes in the pure $`PAH`$ form can never yield a higher-rank map; Scheme 1's $`+B`$ adds translation freedom (linear → affine), and Scheme 2's summation adds superposition freedom over multiple maps—two orthogonal directions for breaking the rank constraint.
 
 ---
 
