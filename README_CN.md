@@ -413,8 +413,8 @@ Goyu Meta Technology Co., Ltd.
 
 **情形一：$P$、$H$ 可逆（初等行、列变换 / 相抵变换）**
 
-- **等价标准形定理**：$\mathrm{rank}(A) = r$ 的 $m \times n$ 矩阵 $A$，存在可逆 $P$、$H$ 使 $PAH = E_r = \begin{pmatrix} I_r & O \\ O & O \end{pmatrix}$。
-- **证明思路（高斯消元的矩阵语言）**：三类初等行/列变换各对应一个可逆的初等矩阵（$E(i,j)$ 换行、$E(i(c))$ 缩放、$E(i,j(k))$ 倍加），做一次行变换 ⟺ 左乘初等矩阵，做一次列变换 ⟺ 右乘初等矩阵。第一步行变换消成阶梯形 $P_s\cdots P_1 A = \begin{pmatrix} U_r \\ O \end{pmatrix}$；第二步列变换用主元清零右侧得 $\mathrm{diag}(D_r, O)$；第三步左乘 $\mathrm{diag}(d_1^{-1},\dots,d_r^{-1},1,\dots,1)$ 把主元缩放为 1。所有左乘攒成 $P$、右乘攒成 $H$，初等矩阵之积仍可逆。$\blacksquare$
+- **等价标准形定理**：$\mathrm{rank}(A) = r$ 的 $m \times n$ 矩阵 $A$，存在可逆 $P$、$H$ 使 $`PAH = E_r = \begin{pmatrix} I_r & O \\ O & O \end{pmatrix}`$。
+- **证明思路（高斯消元的矩阵语言）**：三类初等行/列变换各对应一个可逆的初等矩阵（$E(i,j)$ 换行、$E(i(c))$ 缩放、$E(i,j(k))$ 倍加），做一次行变换 ⟺ 左乘初等矩阵，做一次列变换 ⟺ 右乘初等矩阵。第一步行变换消成阶梯形 $`P_s\cdots P_1 A = \begin{pmatrix} U_r \\ O \end{pmatrix}`$；第二步列变换用主元清零右侧得 $\mathrm{diag}(D_r, O)$；第三步左乘 $\mathrm{diag}(d_1^{-1},\dots,d_r^{-1},1,\dots,1)$ 把主元缩放为 1。所有左乘攒成 $P$、右乘攒成 $H$，初等矩阵之积仍可逆。$\blacksquare$
 - **相抵充要条件**：存在可逆 $P$、$H$ 使 $B = PAH$ ⟺ $\mathrm{rank}(A) = \mathrm{rank}(B)$。
   - ($\Rightarrow$) 可逆变换是线性同构，不改秩：$\mathrm{rank}(B) = \mathrm{rank}(PAH) = \mathrm{rank}(A)$；
   - ($\Leftarrow$) 设秩均为 $r$，则 $A = P_A^{-1}E_rH_A^{-1}$、$B = P_B^{-1}E_rH_B^{-1}$，消去 $E_r$ 得 $B = (P_B^{-1}P_A)\,A\,(H_AH_B^{-1})$。$\blacksquare$

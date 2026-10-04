@@ -360,14 +360,14 @@ $$Q = P \cdot A \cdot H, \qquad P \in \mathbb{R}^{128 \times 50},\; H \in \mathb
 每个初等矩阵都可逆（其逆仍是同类初等矩阵，如 $E\big(i,j(k)\big)^{-1} = E\big(i,j(-k)\big)$）。对 $A$ 做一次初等行变换 $\Longleftrightarrow$ 左乘一个初等矩阵；做一次初等列变换 $\Longleftrightarrow$ 右乘一个初等矩阵。
 
 > **定理（等价标准形）**：设 $A \in \mathbb{R}^{m \times n}$，$\mathrm{rank}(A) = r$，则存在可逆矩阵 $P \in \mathbb{R}^{m \times m}$、$H \in \mathbb{R}^{n \times n}$，使得
-> $$PAH = E_r = \begin{pmatrix} I_r & O \\ O & O \end{pmatrix}$$
+> $$`PAH = E_r = \begin{pmatrix} I_r & O \\ O & O \end{pmatrix}`$$
 > 其中 $I_r$ 是 $r$ 阶单位阵，其余块全为零矩阵。
 
 **证明（高斯消元的矩阵语言，逐步）**：
 
 - **第一步（行变换消元）**：对 $A$ 做高斯消元。若第 1 列存在非零元 $a_{i1} \neq 0$，先交换第 1、$i$ 行（左乘 $E(1,i)$），再用主元把第 1 列其余元素消成 0（依次左乘 $E\big(i,1(-a_{i1}/a_{11})\big)$）；若第 1 列全零则直接看第 2 列。对右下角的子块递归重复。有限步后得到行阶梯形：
-$$P_s \cdots P_2 P_1 \cdot A = \begin{pmatrix} U_r \\ O \end{pmatrix}, \qquad U_r \text{ 是 } r \text{ 行的满秩阶梯形}$$
-- **第二步（列变换清零）**：对 $\begin{pmatrix} U_r \\ O \end{pmatrix}$ 右乘初等矩阵做列消元——用每行的主元把该行右侧的元素全部清零，得到 $\begin{pmatrix} D_r & O \\ O & O \end{pmatrix}$，其中 $D_r = \mathrm{diag}(d_1, \dots, d_r)$，$d_i \neq 0$；
+$$`P_s \cdots P_2 P_1 \cdot A = \begin{pmatrix} U_r \\ O \end{pmatrix}, \qquad U_r \text{ 是 } r \text{ 行的满秩阶梯形}`$$
+- **第二步（列变换清零）**：对 $`\begin{pmatrix} U_r \\ O \end{pmatrix}`$ 右乘初等矩阵做列消元——用每行的主元把该行右侧的元素全部清零，得到 $`\begin{pmatrix} D_r & O \\ O & O \end{pmatrix}`$，其中 $D_r = \mathrm{diag}(d_1, \dots, d_r)$，$d_i \neq 0$；
 - **第三步（主元缩放为 1）**：左乘对角缩放阵 $\mathrm{diag}(d_1^{-1}, \dots, d_r^{-1}, 1, \dots, 1)$，把 $D_r$ 变成 $I_r$；
 - **收尾**：把所有左乘的初等矩阵（含缩放阵）按顺序攒成 $P$，所有右乘的攒成 $H$。初等矩阵均可逆，可逆矩阵之积仍可逆，故 $P$、$H$ 可逆，且 $PAH = E_r$。$\blacksquare$
 
